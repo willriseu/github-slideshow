@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Orosz–magyar szójáték</title>
+<style>
+  :root {
+    --bg: #0f172a;       /* slate-900 */
+    --card: #111827;    /* gray-900 */
+    --muted: #94a3b8;   /* slate-400 */
+    --accent: #22c55e;  /* green-500 */
+    --danger: #ef4444;  /* red-500 */
+    --primary: #60a5fa; /* blue-400 */
+    --btn: #1f2937;     /* gray-800 */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: radial-gradient(1200px 800px at 10% 10%, #111827, #0b1225), var(--bg);
+    color: #e5e7eb;
+  }
+  .wrap {
+    max-width: 980px; margin: 0 auto; padding: 16px;
+    display: grid; gap: 16px;
+  }
+  header {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  }
+  .brand { font-weight: 700; letter-spacing: 0.3px; }
+  .score {
+    display:flex; gap:12px; font-size: 14px; color: var(--muted);
+  }
+  .score span b { color:#fff; }
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border: 1px solid rgba(148,163,184,0.18);
+    border-radius: 16px; padding: 18px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  }
+  .question {
+    font-size: clamp(18px, 4vw, 28px);
+    line-height: 1.3; font-weight: 700; margin-bottom: 6px;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+  .langpill {
+    display:inline-block; padding:4px 10px; border-radius: 999px; font-size:12px;
+    background: #0b1020; border:1px solid rgba(148,163,184,0.25); color:#cbd5e1;
+    margin-left: 6px;
+  }
+  .options {
+    display: grid; gap: 10px;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  @media (min-width: 640px) { .options { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .btn {
+    background: var(--btn); color: #e5e7eb; border:1px solid rgba(148,163,184,0.22);
+    border-radius: 12px; padding: 14px 12px; text-align: left;
+    font-size: clamp(14px, 2.4vw, 18px); cursor: pointer; transition: transform .05s ease;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.correct { background: #052e1a; border-color: var(--accent); color:#bbf7d0; }
+  .btn.wrong   { background: #330b0b; border-color: var(--danger); color:#fecaca; }
+  .controls {
+    display:flex; gap:10px; align-items:center; justify-content: space-between; margin-top: 10px;
+  }
+  .timerbar {
+    height: 10px; border-radius: 999px; background: #0b1020;
+    border:1px solid rgba(148,163,184,0.25); overflow: hidden;
+  }
+  .timerbar > div {
+    height: 100%; background: linear-gradient(90deg, #22c55e, #60a5fa);
+    width: 100%; transition: width 0.2s linear;
+  }
+  .pill {
+    padding: 6px 10px; border-radius: 10px; background:#0b1020; border:1px solid rgba(148,163,184,0.25);
+    font-size:12px; color:#cbd5e1;
+  }
+  .primary {
+    background:#0b5bd7; border-color:#0b5bd7; color:#fff; cursor:pointer;
+  }
+  .muted { color: var(--muted); }
+  .answerline { margin-top:8px; min-height: 22px; }
+  .answerline .ok { color: #86efac; }
+  .answerline .bad { color: #fca5a5; }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:8px 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">Orosz–magyar szójáték</div>
+      <div class="score">
+        <span>✅ Helyes: <b id="good">0</b></span>
+        <span>❌ Rossz: <b id="bad">0</b></span>
+        <span class="pill" title="Megválaszolt / összes">Össz.: <b id="total">0</b> / <b id="all">423</b></span>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="subtitle">Válaszd ki a helyes választ <span class="langpill" id="langTag"></span></div>
+      <div class="question" id="question">Betöltés…</div>
+
+      <div class="options" id="options"></div>
+
+      <div class="controls">
+        <div class="timerbar" style="flex:1">
+          <div id="timefill"></div>
+        </div>
+        <button id="next" class="pill primary" disabled>Tovább</button>
+      </div>
+
+      <div class="answerline" id="answerline"></div>
+    </div>
+
+    <footer>15 másodperc/kérdés • A kérdések vegyesen oroszul és magyarul jönnek.</footer>
+  </div>
+
+<script>
+const DATA = [{"hu": "-hoz/-hez/-höz; számára", "ru": "Для чего тебе это нужно?"}, {"hu": "-hoz/-hez/-höz; számára gyümölcsök és zöldségek", "ru": "Для того чтоб купить фрукты и овощи"}, {"hu": "-nál/-nél engem is jól normálisan", "ru": "У меня тоже всё хорошо ( нормально"}, {"hu": "-val/-vel", "ru": "Насыпать чуть-чуть соли ( сахара, перца"}, {"hu": "a doboz alatt", "ru": "под коробкой"}, {"hu": "a doboz felett", "ru": "над коробкой"}, {"hu": "a doboz körül", "ru": "вокруг коробки"}, {"hu": "a doboz mellett", "ru": "около коробки"}, {"hu": "a doboz mögött", "ru": "за коробкой"}, {"hu": "a dobozban", "ru": "в коробке"}, {"hu": "a dobozból", "ru": "из коробки"}, {"hu": "a dobozhoz", "ru": "к коробке"}, {"hu": "a doboznál", "ru": "у коробки"}, {"hu": "a dobozon", "ru": "на коробке"}, {"hu": "a dobozon keresztül", "ru": "через коробку"}, {"hu": "a doboztól", "ru": "от коробки"}, {"hu": "akarni", "ru": "Хотеть"}, {"hu": "Allergia", "ru": "Аллергия"}, {"hu": "alma", "ru": "яблоко"}, {"hu": "aludni", "ru": "Спать"}, {"hu": "ananász", "ru": "ананас"}, {"hu": "anya", "ru": "мама"}, {"hu": "apa", "ru": "папа"}, {"hu": "asztal", "ru": "стол"}, {"hu": "bankkártya", "ru": "карта (банковская)"}, {"hu": "banán", "ru": "банан"}, {"hu": "Barna", "ru": "коричневый"}, {"hu": "bazár", "ru": "Базар"}, {"hu": "befejezni", "ru": "Заканчивать"}, {"hu": "Bevásárlás", "ru": "🛒 Покупки"}, {"hu": "bevásárlókocsi", "ru": "тележка"}, {"hu": "blokk / nyugta", "ru": "чек"}, {"hu": "bolt / üzlet", "ru": "магазин"}, {"hu": "bordó", "ru": "бордовый"}, {"hu": "borsó", "ru": "горох"}, {"hu": "borult", "ru": "пасмурно"}, {"hu": "brokkoli", "ru": "брокколи"}, {"hu": "burgonya", "ru": "картошка"}, {"hu": "burgonya / krumpli", "ru": "картофель"}, {"hu": "Bőr", "ru": "Замша"}, {"hu": "Bőr", "ru": "Кожа"}, {"hu": "család", "ru": "семья"}, {"hu": "cseresznye", "ru": "черешня"}, {"hu": "csili paprika", "ru": "перец чили"}, {"hu": "csinálni", "ru": "Делать"}, {"hu": "csirke", "ru": "курица"}, {"hu": "csirkehús", "ru": "Куриное мясо"}, {"hu": "csirkeleves", "ru": "Куриный суп"}, {"hu": "Csizma", "ru": "Сапоги"}, {"hu": "Csizma", "ru": "Шапка"}, {"hu": "csésze", "ru": "чашка"}, {"hu": "Csíkos", "ru": "в клетку"}, {"hu": "Csíkos", "ru": "в полоску"}, {"hu": "csípős", "ru": "острый"}, {"hu": "cukkini", "ru": "кабачок"}, {"hu": "cukor", "ru": "сахар"}, {"hu": "cékla", "ru": "свекла"}, {"hu": "datolyaszilva", "ru": "хурма"}, {"hu": "Diagnózis", "ru": "Диагноз"}, {"hu": "dohányzóasztal", "ru": "журнальный стол"}, {"hu": "Dzseki", "ru": "Куртка"}, {"hu": "Dzseki", "ru": "Пальто"}, {"hu": "ebéd", "ru": "обед"}, {"hu": "egres / piszke", "ru": "крыжовник"}, {"hu": "egy", "ru": "один"}, {"hu": "Egyszínű", "ru": "однотонный"}, {"hu": "Egyszínű", "ru": "цветной"}, {"hu": "egészséges", "ru": "Полезный"}, {"hu": "elfogadni", "ru": "Принимать"}, {"hu": "elkészíteni", "ru": "Приготовить"}, {"hu": "előszobafal", "ru": "прихожая"}, {"hu": "enni", "ru": "Есть"}, {"hu": "enni", "ru": "есть (кушать)"}, {"hu": "enyhe (ízű)", "ru": "нежный"}, {"hu": "enyhe, nem csípős", "ru": "неострый, некрепкий, мягкий"}, {"hu": "eper", "ru": "клубника"}, {"hu": "erős szél", "ru": "сильный ветер"}, {"hu": "eső", "ru": "дождь"}, {"hu": "fagy", "ru": "заморозки"}, {"hu": "Farmeranyag", "ru": "джинсовая ткань"}, {"hu": "Farmernadrág", "ru": "джинсы"}, {"hu": "Farmernadrág", "ru": "рубашка"}, {"hu": "Fehér", "ru": "Белый"}, {"hu": "Fehér", "ru": "Чёрный"}, {"hu": "fejes káposzta", "ru": "белокочанная капуста"}, {"hu": "Fekete", "ru": "красный"}, {"hu": "Fekete", "ru": "Чёрный"}, {"hu": "fekete áfonya", "ru": "черника"}, {"hu": "felhős", "ru": "облачно"}, {"hu": "felébredni", "ru": "Просыпаться"}, {"hu": "Fertőzés", "ru": "Инфекция"}, {"hu": "finom", "ru": "вкусно"}, {"hu": "fizetni", "ru": "платить"}, {"hu": "fizetni", "ru": "Расплачиваться"}, {"hu": "fiúgyermek", "ru": "сын"}, {"hu": "fiútestvér", "ru": "брат"}, {"hu": "fokhagyma", "ru": "чеснок"}, {"hu": "forró", "ru": "горячий"}, {"hu": "forróság/forró", "ru": "жарко"}, {"hu": "fotel", "ru": "кресло"}, {"hu": "friss", "ru": "свежий"}, {"hu": "Fáj a fejem", "ru": "Голова болит"}, {"hu": "Fáj a hasam", "ru": "Живот болит"}, {"hu": "Fájdalom", "ru": "Боль"}, {"hu": "Félcipő", "ru": "Сапоги"}, {"hu": "Félcipő", "ru": "Туфли"}, {"hu": "fésülködőasztal", "ru": "туалетный столик"}, {"hu": "főzni/készíteni", "ru": "Готовить"}, {"hu": "grapefruit", "ru": "грейпфрут"}, {"hu": "gránátalma", "ru": "гранат"}, {"hu": "Gyapjú", "ru": "Шерсть"}, {"hu": "Gyapjú", "ru": "Шёлк"}, {"hu": "gyenge", "ru": "Слабый"}, {"hu": "gyengébb", "ru": "Слабее"}, {"hu": "gyerek", "ru": "Ребенок"}, {"hu": "Gyógyszer", "ru": "Лекарство"}, {"hu": "Gyógyszertár", "ru": "Аптека"}, {"hu": "Gyógyulás", "ru": "Выздоровление"}, {"hu": "gyömbér", "ru": "имбирь"}, {"hu": "gyümölcsök", "ru": "фрукты"}, {"hu": "görögdinnye", "ru": "арбуз"}, {"hu": "hagyma", "ru": "лук"}, {"hu": "hal", "ru": "рыба"}, {"hu": "hallani", "ru": "Слышать"}, {"hu": "harmat", "ru": "роса"}, {"hu": "harminc", "ru": "тридцать"}, {"hu": "hasított bőr", "ru": "Замша"}, {"hu": "hasított bőr", "ru": "синтетика"}, {"hu": "hat", "ru": "шесть"}, {"hu": "hatvan", "ru": "шестьдесят"}, {"hu": "havas eső", "ru": "дождь и снег"}, {"hu": "hetven", "ru": "семьдесят"}, {"hu": "heverő", "ru": "тахта"}, {"hu": "hideg", "ru": "холодно"}, {"hu": "hideg", "ru": "Холодный"}, {"hu": "hintaszék", "ru": "кресло-качалка"}, {"hu": "hogy/mi", "ru": "Выбрать что-то из коробки"}, {"hu": "hogyan/hogy", "ru": "Как ваши дела?"}, {"hu": "hogyan/hogy", "ru": "Как дела ?"}, {"hu": "hogyan/hogy", "ru": "Как дела?-"}, {"hu": "hogyan/hogy szín", "ru": "Какой твой любимый цвет?"}, {"hu": "hogyan/hogy szín", "ru": "Какой цвет тебе нравится?"}, {"hu": "Hogyan?", "ru": "Как?"}, {"hu": "hokedli / sámliszék", "ru": "табурет"}, {"hu": "Hol?", "ru": "Где?"}, {"hu": "Honnan?", "ru": "Откуда?"}, {"hu": "Hová?", "ru": "Куда?"}, {"hu": "hozzáadni", "ru": "Добавлять"}, {"hu": "hányingerkeltő", "ru": "тошнотворный"}, {"hu": "három", "ru": "три"}, {"hu": "hét", "ru": "семь"}, {"hu": "hó", "ru": "снег"}, {"hu": "hús", "ru": "мясо"}, {"hu": "húsz", "ru": "двадцать"}, {"hu": "Hőmérséklet", "ru": "Температура"}, {"hu": "ibolyalila", "ru": "сиреневый"}, {"hu": "Influenza", "ru": "Грипп"}, {"hu": "Ing", "ru": "рубашка"}, {"hu": "Ing", "ru": "футболка"}, {"hu": "inni", "ru": "пить"}, {"hu": "irányította a játékot", "ru": "Управлял игрой"}, {"hu": "ismételni", "ru": "Повторять"}, {"hu": "jégeső", "ru": "град"}, {"hu": "jó éjszakát", "ru": "Спокойной ночи"}, {"hu": "jól", "ru": "Хорошо-"}, {"hu": "Kabát", "ru": "Пальто"}, {"hu": "Kabát", "ru": "Свитер"}, {"hu": "kanapé", "ru": "диван"}, {"hu": "kanál", "ru": "ложка"}, {"hu": "karfiol", "ru": "цветная капуста"}, {"hu": "kedvezmény", "ru": "скидка"}, {"hu": "kenyér", "ru": "хлеб"}, {"hu": "kenyér kívül és belül", "ru": "Хлеб хрустящий снаружи и мягкий внутри"}, {"hu": "kerülni (vmibe)", "ru": "Стоить"}, {"hu": "keserű", "ru": "горький"}, {"hu": "Kesztyű", "ru": "перчатки"}, {"hu": "Kesztyű", "ru": "Ремень"}, {"hu": "kettő", "ru": "два"}, {"hu": "kezdeni", "ru": "Начинать"}, {"hu": "Kezelés", "ru": "Лечение"}, {"hu": "Ki?", "ru": "Кто?"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Быть голодным"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Голодный"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Дать"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "До скорой встречи!"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Жаловаться"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Лежать"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Нравится"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Познакомиться"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Покупать"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Приказывать"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Противоположный"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Регулярный"}, {"hu": "kifejezés (fordítás pontosítása szükséges)", "ru": "Так себе-"}, {"hu": "kilenc", "ru": "девять"}, {"hu": "kilencven", "ru": "девяносто"}, {"hu": "kivi", "ru": "киви"}, {"hu": "Kockás", "ru": "в горошек"}, {"hu": "Kockás", "ru": "в клетку"}, {"hu": "komód", "ru": "комод"}, {"hu": "kosár", "ru": "корзина"}, {"hu": "kosárlabda", "ru": "Баскетбол"}, {"hu": "krumpli / burgonya", "ru": "картофель"}, {"hu": "krémes, zsíros", "ru": "сливочный, жирный"}, {"hu": "kukorica", "ru": "кукуруза"}, {"hu": "káposzta", "ru": "капуста"}, {"hu": "Kék", "ru": "голубой"}, {"hu": "Kék", "ru": "Синий"}, {"hu": "kérdezni", "ru": "Спрашивать"}, {"hu": "kés", "ru": "нож"}, {"hu": "készpénz", "ru": "наличные"}, {"hu": "kívánni", "ru": "Желать"}, {"hu": "köd", "ru": "туман"}, {"hu": "Köhögés", "ru": "Кашель"}, {"hu": "könyvszekrény", "ru": "книжный шкаф"}, {"hu": "körte", "ru": "груша"}, {"hu": "köszönöm jól", "ru": "Спасибо, всё хорошо"}, {"hu": "köszönöm jól", "ru": "Спасибо, хорошо"}, {"hu": "különleges", "ru": "Особенный"}, {"hu": "lassan", "ru": "Медленно"}, {"hu": "Len", "ru": "Лен"}, {"hu": "Len", "ru": "Шерсть"}, {"hu": "lila (bíbor)", "ru": "фиолетовый"}, {"hu": "Lábbeli", "ru": "Обувь"}, {"hu": "Lábbeli", "ru": "Туфли"}, {"hu": "lánygyermek", "ru": "дочка"}, {"hu": "lánytestvér", "ru": "сестра"}, {"hu": "látni", "ru": "Видеть"}, {"hu": "Megfázás", "ru": "Простуда"}, {"hu": "meggy", "ru": "вишня"}, {"hu": "megrendelni", "ru": "Заказать"}, {"hu": "meleg", "ru": "тепло"}, {"hu": "mellettem", "ru": "Рядом со мной"}, {"hu": "menni", "ru": "Идти"}, {"hu": "Mennyi? / Hány?", "ru": "Сколько?"}, {"hu": "mert hogy/mi ők gyümölcsök és zöldségek", "ru": "Потому что они хотят купить фрукты и овощи"}, {"hu": "Mi célból? / Mire?", "ru": "Зачем? / Для чего?"}, {"hu": "Mi?", "ru": "Что?"}, {"hu": "Mikor?", "ru": "Когда?"}, {"hu": "Milyen? / Melyik?", "ru": "Какой? Какая? Какое? Какие?"}, {"hu": "minden jót", "ru": "Всего хорошего"}, {"hu": "Mintás", "ru": "однотонный"}, {"hu": "Mintás", "ru": "с рисунком"}, {"hu": "miért mert hogy/mi", "ru": "Почему? - Потому что"}, {"hu": "miért te", "ru": "Почему ты спишь?"}, {"hu": "Miért?", "ru": "Почему?"}, {"hu": "mondani", "ru": "Сказать"}, {"hu": "málna", "ru": "малина"}, {"hu": "Műszál", "ru": "джинсовая ткань"}, {"hu": "Műszál", "ru": "синтетика"}, {"hu": "Nadrág", "ru": "Брюки"}, {"hu": "Nadrág", "ru": "джинсы"}, {"hu": "nagyapa", "ru": "дед"}, {"hu": "nagybácsi", "ru": "дядя"}, {"hu": "nagymama", "ru": "бабушка"}, {"hu": "nagynéni", "ru": "тётя"}, {"hu": "nagyon", "ru": "Не очень-"}, {"hu": "napos", "ru": "солнечно"}, {"hu": "napraforgóolaj", "ru": "Подсолнечное масло"}, {"hu": "narancs", "ru": "апельсин"}, {"hu": "narancssárga", "ru": "оранжевый"}, {"hu": "narancssárga", "ru": "розовый"}, {"hu": "nasi / uzsonna", "ru": "перекус"}, {"hu": "negyven", "ru": "сорок"}, {"hu": "nekem", "ru": "Мне нравится"}, {"hu": "nekem", "ru": "Мне нравятся"}, {"hu": "nem rossz", "ru": "Неплохо-"}, {"hu": "normálisan", "ru": "Нормально-"}, {"hu": "nulla", "ru": "ноль"}, {"hu": "nyolc", "ru": "восемь"}, {"hu": "nyolcvan", "ru": "восемьдесят"}, {"hu": "nyugdíjas", "ru": "Пенсионер"}, {"hu": "négy", "ru": "четыре"}, {"hu": "nézni", "ru": "Смотреть"}, {"hu": "Oltás", "ru": "Вакцина"}, {"hu": "olvasni", "ru": "Читать"}, {"hu": "olívabogyó", "ru": "Оливки"}, {"hu": "olívaolaj", "ru": "Оливковое масло"}, {"hu": "Orrfolyás", "ru": "Насморк"}, {"hu": "Orvos", "ru": "Врач"}, {"hu": "padlizsán", "ru": "баклажан"}, {"hu": "Pamut", "ru": "Лен"}, {"hu": "Pamut", "ru": "Хлопок"}, {"hu": "paradicsom", "ru": "помидор"}, {"hu": "paradicsom", "ru": "томат"}, {"hu": "piac", "ru": "рынок"}, {"hu": "piac bazár", "ru": "Рынок ( базар"}, {"hu": "pikáns (sós jellegű)", "ru": "пикантный"}, {"hu": "Piros", "ru": "красный"}, {"hu": "Piros", "ru": "Синий"}, {"hu": "pohár", "ru": "стакан"}, {"hu": "Prevenció", "ru": "Профилактика"}, {"hu": "puff", "ru": "пуфик"}, {"hu": "Pulóver", "ru": "Носки"}, {"hu": "Pulóver", "ru": "Свитер"}, {"hu": "pépes", "ru": "мягкий"}, {"hu": "Póló", "ru": "Пиджак"}, {"hu": "Póló", "ru": "футболка"}, {"hu": "Pöttyös", "ru": "в горошек"}, {"hu": "Pöttyös", "ru": "с рисунком"}, {"hu": "reggeli", "ru": "завтрак"}, {"hu": "rendelni", "ru": "Заказывать"}, {"hu": "retek", "ru": "редис"}, {"hu": "ribizli", "ru": "смородина"}, {"hu": "ropogós", "ru": "хрустящий"}, {"hu": "rossz", "ru": "Всё плохо-"}, {"hu": "rossz", "ru": "Плохо-"}, {"hu": "Ruha", "ru": "Платье"}, {"hu": "Ruha", "ru": "Юбка"}, {"hu": "répa", "ru": "морковь"}, {"hu": "Rózsaszín", "ru": "розовый"}, {"hu": "Rózsaszín", "ru": "Серый"}, {"hu": "sajt", "ru": "сыр"}, {"hu": "salátazöld", "ru": "салатовый"}, {"hu": "sapka (téli)", "ru": "перчатки"}, {"hu": "sapka (téli)", "ru": "Шапка"}, {"hu": "savanyú", "ru": "кислый"}, {"hu": "Selyem", "ru": "Кожа"}, {"hu": "Selyem", "ru": "Шёлк"}, {"hu": "sok", "ru": "Много людей"}, {"hu": "spenót", "ru": "шпинат"}, {"hu": "szalámi", "ru": "Салями"}, {"hu": "szalámi", "ru": "Эта салями пикантная ( острая"}, {"hu": "szamóca", "ru": "земляника"}, {"hu": "szeder", "ru": "ежевика"}, {"hu": "szekrény", "ru": "шкаф"}, {"hu": "szekrénysor / vitrines állvány", "ru": "горка"}, {"hu": "szilva", "ru": "слива"}, {"hu": "Szoknya", "ru": "Брюки"}, {"hu": "Szoknya", "ru": "Юбка"}, {"hu": "szomszédasszony", "ru": "Соседка"}, {"hu": "szupermarket", "ru": "супермаркет"}, {"hu": "számítógépasztal", "ru": "компьютерный стол"}, {"hu": "számítógépes szék", "ru": "компьютерное кресло"}, {"hu": "száz", "ru": "сто"}, {"hu": "szék", "ru": "стул"}, {"hu": "szél", "ru": "ветер"}, {"hu": "szín", "ru": "Мой любимый цвет"}, {"hu": "színek", "ru": "Какие цвета тебе нравятся?"}, {"hu": "színek te", "ru": "Какие цвета ты любишь?"}, {"hu": "Színes", "ru": "Белый"}, {"hu": "Színes", "ru": "цветной"}, {"hu": "színész", "ru": "Актер"}, {"hu": "Szürke", "ru": "коричневый"}, {"hu": "Szürke", "ru": "Серый"}, {"hu": "szőlő", "ru": "виноград"}, {"hu": "Sárga", "ru": "жёлтый"}, {"hu": "Sárga", "ru": "оранжевый"}, {"hu": "sárgabarack", "ru": "абрикос"}, {"hu": "sárgadinnye", "ru": "дыня"}, {"hu": "sárgarépa", "ru": "морковь"}, {"hu": "Sérülés", "ru": "Травма"}, {"hu": "só", "ru": "соль"}, {"hu": "sós", "ru": "соленый"}, {"hu": "sült", "ru": "Запеченный"}, {"hu": "sűrű (laktató)", "ru": "густой"}, {"hu": "tanuló (fiú) tanuló (lány) tanulók", "ru": "Ученик - ученица ( ученики"}, {"hu": "tanácsolni", "ru": "Советовать"}, {"hu": "te egy kicsit", "ru": "Ты немного устал"}, {"hu": "tej", "ru": "молоко"}, {"hu": "tizenegy", "ru": "одиннадцать"}, {"hu": "tizenhat", "ru": "шестнадцать"}, {"hu": "tizenhárom", "ru": "тринадцать"}, {"hu": "tizenhét", "ru": "семнадцать"}, {"hu": "tizenkettő", "ru": "двенадцать"}, {"hu": "tizenkilenc", "ru": "девятнадцать"}, {"hu": "tizennyolc", "ru": "восемнадцать"}, {"hu": "tizennégy", "ru": "четырнадцать"}, {"hu": "tizenöt", "ru": "пятнадцать"}, {"hu": "tojás", "ru": "яйца"}, {"hu": "tálalószekrény", "ru": "буфет"}, {"hu": "tányér", "ru": "тарелка"}, {"hu": "tíz", "ru": "десять"}, {"hu": "tök", "ru": "тыква"}, {"hu": "Tünet", "ru": "Симптом"}, {"hu": "uborka", "ru": "огурец"}, {"hu": "unokaöcs", "ru": "племянник"}, {"hu": "vacsora", "ru": "ужин"}, {"hu": "vaj / olaj", "ru": "масло"}, {"hu": "villa", "ru": "вилка"}, {"hu": "villám", "ru": "молния"}, {"hu": "Világoskék", "ru": "голубой"}, {"hu": "Világoskék", "ru": "зелёный"}, {"hu": "virsli", "ru": "Сосиска"}, {"hu": "válaszolni", "ru": "Отвечать"}, {"hu": "vásárolni", "ru": "покупать"}, {"hu": "vörösáfonya / tőzegáfonya", "ru": "клюква"}, {"hu": "Zakó", "ru": "Куртка"}, {"hu": "Zakó", "ru": "Пиджак"}, {"hu": "zeller", "ru": "сельдерей"}, {"hu": "zivatar", "ru": "гроза"}, {"hu": "Zokni", "ru": "Носки"}, {"hu": "Zokni", "ru": "Обувь"}, {"hu": "Zöld", "ru": "жёлтый"}, {"hu": "Zöld", "ru": "зелёный"}, {"hu": "zöld toll", "ru": "Зеленая ручка"}, {"hu": "zöldségek", "ru": "овощи"}, {"hu": "zöldségek és gyümölcsök", "ru": "Чтоб купить овощи и фрукты"}, {"hu": "zöldségsaláta", "ru": "Овощной салат"}, {"hu": "zúzmara", "ru": "иней"}, {"hu": "ágy", "ru": "кровать"}, {"hu": "állott", "ru": "несвежий"}, {"hu": "állvány/polcrendszer", "ru": "стеллаж"}, {"hu": "ár", "ru": "цена"}, {"hu": "édes", "ru": "сладкий"}, {"hu": "éhes", "ru": "голодный"}, {"hu": "éjjeliszekrény / kis szekrény", "ru": "тумбочка"}, {"hu": "én", "ru": "Я говорю по русский"}, {"hu": "én", "ru": "Я люблю"}, {"hu": "én", "ru": "Я разговариваю на русском языке"}, {"hu": "én hogy/mi te sok és", "ru": "Я думаю что ты много завтракаешь, мало обедаешь и не ужинаешь"}, {"hu": "én hogy/mi ön/ti sok és", "ru": "Я думаю, что вы много помните мало спешите и не гуляете"}, {"hu": "és/ám -nál/-nél téged", "ru": "А у тебя ?"}, {"hu": "és/ám -nál/-nél Önt/titeket", "ru": "А у вас ?"}, {"hu": "és/ám -nál/-nél Önt/titeket", "ru": "А у вас?"}, {"hu": "ízetlen", "ru": "безвкусный"}, {"hu": "Öltöny", "ru": "Костюм"}, {"hu": "ön/ti egy kicsit", "ru": "Вы немного устали"}, {"hu": "öt", "ru": "пять"}, {"hu": "ötven", "ru": "пятьдесят"}, {"hu": "Öv", "ru": "Костюм"}, {"hu": "Öv", "ru": "Ремень"}, {"hu": "őszibarack", "ru": "персик"}];
+
+const state = {
+  good: 0, bad: 0, total: 0,
+  order: [],
+  current: null,
+  direction: 'HU2RU', // or 'RU2HU'
+  options: [],
+  timer: null,
+  timeLeft: 15,
+  lock: false
+};
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function sample(arr, k, excludeIndex=null) {
+  const idxs = Array.from(arr.keys());
+  if (excludeIndex!==null) idxs.splice(excludeIndex,1);
+  shuffle(idxs);
+  return idxs.slice(0,k).map(i=>arr[i]);
+}
+
+function init() {
+  state.order = shuffle([...DATA.keys()]);
+  document.getElementById('good').textContent = state.good;
+  document.getElementById('bad').textContent = state.bad;
+  document.getElementById('total').textContent = state.total;
+  nextQuestion();
+}
+
+function nextQuestion() {
+  if (state.timer) clearInterval(state.timer);
+  state.lock = false;
+  document.getElementById('answerline').innerHTML = '';
+  document.getElementById('next').disabled = true;
+
+  if (state.order.length === 0) {
+    state.order = shuffle([...DATA.keys()]); // recycle so you can play indefinitely
+  }
+  const idx = state.order.pop();
+  const item = DATA[idx];
+  state.current = { idx, item };
+
+  // Randomly decide direction and number of options (4 or 5)
+  state.direction = Math.random() < 0.5 ? 'HU2RU' : 'RU2HU';
+  const optCount = Math.random() < 0.5 ? 4 : 5;
+
+  const questionText = state.direction === 'HU2RU' ? item.hu : item.ru;
+  const correct = state.direction === 'HU2RU' ? item.ru : item.hu;
+
+  // Build options
+  const wrongPool = DATA.filter((_,i)=>i!==idx).map(x => state.direction==='HU2RU' ? x.ru : x.hu);
+  shuffle(wrongPool);
+  const options = [correct, ...wrongPool.slice(0, optCount-1)];
+  shuffle(options);
+  state.options = options;
+
+  // Render
+  document.getElementById('langTag').textContent = state.direction==='HU2RU' ? 'Kérdés: MAGYAR → Válasz: OROSZ' : 'Kérdés: OROSZ → Válasz: MAGYAR';
+  document.getElementById('question').textContent = questionText;
+  const optsEl = document.getElementById('options');
+  optsEl.innerHTML = '';
+  options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = opt;
+    btn.onclick = () => selectAnswer(btn, opt, correct);
+    optsEl.appendChild(btn);
+  });
+
+  // Timer
+  state.timeLeft = 15;
+  const fill = document.getElementById('timefill');
+  fill.style.width = '100%';
+  state.timer = setInterval(() => {
+    state.timeLeft -= 0.2;
+    const pct = Math.max(0, Math.min(100, (state.timeLeft/15)*100));
+    fill.style.width = pct + '%';
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timer);
+      timeout(correct);
+    }
+  }, 200);
+}
+
+function selectAnswer(btn, chosen, correct) {
+  if (state.lock) return;
+  state.lock = true;
+  clearInterval(state.timer);
+
+  const buttons = Array.from(document.querySelectorAll('.btn'));
+  buttons.forEach(b => b.disabled = true);
+
+  if (chosen === correct) {
+    btn.classList.add('correct');
+    state.good += 1;
+    document.getElementById('answerline').innerHTML = `<span class="ok">✅ Helyes!</span>`;
+  } else {
+    btn.classList.add('wrong');
+    // highlight the correct one
+    buttons.find(b => b.textContent === correct)?.classList.add('correct');
+    state.bad += 1;
+    document.getElementById('answerline').innerHTML = `<span class="bad">❌ Nem jó.</span> Helyes: <b>{correct}</b>`;
+  }
+  state.total += 1;
+  document.getElementById('good').textContent = state.good;
+  document.getElementById('bad').textContent = state.bad;
+  document.getElementById('total').textContent = state.total;
+  document.getElementById('next').disabled = false;
+}
+
+function timeout(correct) {
+  if (state.lock) return;
+  state.lock = true;
+  const buttons = Array.from(document.querySelectorAll('.btn'));
+  buttons.forEach(b => b.disabled = true);
+  buttons.find(b => b.textContent === correct)?.classList.add('correct');
+  state.bad += 1;
+  state.total += 1;
+  document.getElementById('bad').textContent = state.bad;
+  document.getElementById('total').textContent = state.total;
+  document.getElementById('answerline').innerHTML = `<span class="bad">⏱ Lejárt az idő!</span> Helyes: <b>{correct}</b>`;
+  document.getElementById('next').disabled = false;
+}
+
+document.getElementById('next').addEventListener('click', nextQuestion);
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
